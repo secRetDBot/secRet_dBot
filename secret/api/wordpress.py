@@ -4,8 +4,8 @@ import os
 import re
 import requests
 import requests.packages.urllib3
+import time
 
-from datetime import datetime
 from lxml import etree
 from random import randint
 from secret import utils
@@ -55,7 +55,7 @@ async def on_message(message, secret_context):
 
 def run(message, secret_context, target):
     global wordpress_scan_target
-    datetime_now = datetime.now()
+    start = time.time()
     user_agent = get_random_agent()
 
     index = requests.get(target, headers={"User-Agent": user_agent}, verify=False)
@@ -83,8 +83,8 @@ def run(message, secret_context, target):
                 enumerate_plugins(message, secret_context, index)
                 enumerate_themes(message, secret_context, index)
 
-            end = datetime.now()
-            total = end.timestamp() - datetime_now.timestamp()
+            end = time.time()
+            total = end - start
 
             embed = utils.simple_embed('**%s**' % target, 'wordpress scan finished in: %s' %
                                        '{0:%H:%M:%S}'.format(total),
