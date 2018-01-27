@@ -171,7 +171,7 @@ async def list_wp_version_vuln(message, secret_context, target, version):
 
 async def enumerate_users(message, secret_context, target, user_agent):
     r = requests.get(target + "wp-json/wp/v2/users", headers={"User-Agent": user_agent}, verify=False)
-    if r.status_code == 200:
+    if "200" in str(r):
         embed = utils.simple_embed('**%s**' % target, 'enumerated users', discord.Color.green())
         users = json.loads(r.text)
         for user in users:
@@ -192,7 +192,7 @@ async def full_path_disclose(message, secret_context, target, user_agent):
 
 async def check_robots(message, secret_context, target, user_agent):
     r = requests.get(target + "robots.txt", headers={"User-Agent": user_agent}, verify=False)
-    if r.status_code == 200:
+    if "200" in str(r) and "404" not in r.text:
         embed = utils.simple_embed('**%s**' % target, 'robots is available at: **%s**' % target + "robots.txt",
                                    discord.Color.green())
         lines = r.text.split('\n')
@@ -217,7 +217,7 @@ async def check_directory_listing(message, secret_context, target, user_agent):
 
 async def check_xml_rpc(message, secret_context, target, user_agent):
     r = requests.get(target + "xmlrpc.php", headers={"User-Agent": user_agent}, verify=False)
-    if r.status_code == 200:
+    if "200" in str(r) and "404" not in r.text:
         embed = utils.simple_embed('**%s**' % target, 'found xml-rpc interface: **%s**' % target + "xmlrpc.php",
                                    discord.Color.green())
         await secret_context.discord_client.send_message(message.channel, embed=embed)
@@ -234,7 +234,7 @@ async def check_backup_files(message, secret_context, target, user_agent):
               'wp-config.test', 'wp-config.php.test']
     for b in backup:
         r = requests.get(target + b, headers={"User-Agent": user_agent}, verify=False)
-        if r.status_code == 200:
+        if "200" in str(r) and "404" not in r.text:
             embed = utils.simple_embed('**%s**' % target, 'found config backup: **%s**' % target + b,
                                        discord.Color.green())
             await secret_context.discord_client.send_message(message.channel, embed=embed)
@@ -248,7 +248,7 @@ def check_version(target, user_agent, index):
             v = fingerprint_wp_version_hash_based(target)
             if v is None:
                 r = requests.get(target + 'readme.html', headers={"User-Agent": user_agent}, verify=False)
-                if r.status_code == 200:
+                if "200" in str(r):
                     regex = 'Version (.*)'
                     regex = re.compile(regex)
                     matches = regex.findall(r.text)
