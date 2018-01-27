@@ -59,6 +59,8 @@ def run(message, secret_context, target):
         embed = utils.simple_embed('**%s**' % target, 'does not appear to be powered by wordpress',
                                    discord.Color.red())
         secret_context.main_loop.create_task(secret_context.discord_client.send_message(message.channel, embed=embed))
+        global wordpress_scan_target
+        wordpress_scan_target = ''
     else:
         version = check_version(target, user_agent, index)
         embed = utils.simple_embed('**%s**' % target, 'wordpress version found: **%s**' % version,
