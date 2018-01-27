@@ -35,7 +35,10 @@ async def on_message(message, secret_context):
                 await secret_context.discord_client.send_message(message.channel, embed=embed)
                 return
 
-            target = parts[1]
+            if parts[1] == 'scan':
+                target = parts[2]
+            else:
+                target = parts[1]
 
             if target[-1] != '/':
                 target = target + '/'
@@ -80,7 +83,7 @@ def run(message, secret_context, target):
             enumerate_themes(message, secret_context, index)
 
         end = datetime.now()
-        total = end - datetime_now
+        total = end.timestamp() - datetime_now.timestamp()
 
         embed = utils.simple_embed('**%s**' % target, 'wordpress scan finished in: %s' %
                                    '{0:%H:%M:%S}'.format(total),
