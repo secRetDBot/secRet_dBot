@@ -39,7 +39,7 @@ async def on_message(message, secret_context):
                                            discord.Color.red())
                 await secret_context.discord_client.send_message(message.channel, embed=embed)
             else:
-                version = await check_version(target, user_agent, index)
+                version = check_version(target, user_agent, index)
                 embed = utils.simple_embed('**%s**' % target, 'wordpress version found: **%s**' % version,
                                            discord.Color.green())
                 await secret_context.discord_client.send_message(message.channel, embed=embed)
@@ -249,7 +249,7 @@ async def check_backup_files(message, secret_context, target, user_agent):
             await secret_context.discord_client.send_message(message.channel, embed=embed)
 
 
-async def check_version(target, user_agent, index):
+def check_version(target, user_agent, index):
     v = fingerprint_wp_version_meta_based(index)
     if v is None:
         v = fingerprint_wp_version_feed_based(target, user_agent)
