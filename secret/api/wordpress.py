@@ -70,25 +70,31 @@ def run(message, secret_context, target):
                                    discord.Color.green())
         secret_context.main_loop.create_task(secret_context.discord_client.send_message(message.channel, embed=embed))
 
-        check_backup_files(message, secret_context, target, user_agent)
-        check_xml_rpc(message, secret_context, target, user_agent)
-        check_directory_listing(message, secret_context, target, user_agent)
-        check_robots(message, secret_context, target, user_agent)
-        full_path_disclose(message, secret_context, target, user_agent)
-        enumerate_users(message, secret_context, target, user_agent)
+        try:
+            check_backup_files(message, secret_context, target, user_agent)
+            check_xml_rpc(message, secret_context, target, user_agent)
+            check_directory_listing(message, secret_context, target, user_agent)
+            check_robots(message, secret_context, target, user_agent)
+            full_path_disclose(message, secret_context, target, user_agent)
+            enumerate_users(message, secret_context, target, user_agent)
 
-        if version is not None:
-            list_wp_version_vuln(message, secret_context, target, version)
-            enumerate_plugins(message, secret_context, index)
-            enumerate_themes(message, secret_context, index)
+            if version is not None:
+                list_wp_version_vuln(message, secret_context, target, version)
+                enumerate_plugins(message, secret_context, index)
+                enumerate_themes(message, secret_context, index)
 
-        end = datetime.now()
-        total = end.timestamp() - datetime_now.timestamp()
+            end = datetime.now()
+            total = end.timestamp() - datetime_now.timestamp()
 
-        embed = utils.simple_embed('**%s**' % target, 'wordpress scan finished in: %s' %
-                                   '{0:%H:%M:%S}'.format(total),
-                                   discord.Color.green())
-        secret_context.main_loop.create_task(secret_context.discord_client.send_message(message.channel, embed=embed))
+            embed = utils.simple_embed('**%s**' % target, 'wordpress scan finished in: %s' %
+                                       '{0:%H:%M:%S}'.format(total),
+                                       discord.Color.green())
+            secret_context.main_loop.create_task(secret_context.discord_client.send_message(message.channel, embed=embed))
+        except Exception as e:
+            embed = utils.simple_embed('error', str(e),
+                                       discord.Color.green())
+            secret_context.main_loop.create_task(
+                secret_context.discord_client.send_message(message.channel, embed=embed))
 
         wordpress_scan_target = ''
 
