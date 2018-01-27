@@ -111,19 +111,19 @@ def enumerate_themes(message, secret_context, index):
                 if is_lower(theme_version, data[theme_name]['latest_version'], False):
                     embed.add_field(name='latest version', value=data[theme_name]['latest_version'], inline=False)
 
-            for vuln in data[theme_name]['vulnerabilities']:
-                if 'fixed_in' in vuln.keys() and (vuln['fixed_in'] is None or
-                                                  is_lower(theme_version, vuln['fixed_in'], True)):
-                    embed.add_field(name=vuln['vuln_type'] + ' | ' + vuln['title'] + ' (' + str(vuln['id']) + ')',
-                                    value="fixed in %s" % vuln['fixed_in'], inline=False)
-                    for ref_key in vuln['references'].keys():
-                        for ref in vuln['references'][ref_key]:
-                            if ref_key != 'url':
-                                embed.add_field(name='reference', value=ref_key.capitalize() + ' - ' + ref)
-                            else:
-                                embed.add_field(name='reference', value=ref)
-            secret_context.main_loop.create_task(
-                secret_context.discord_client.send_message(message.channel, embed=embed))
+                for vuln in data[theme_name]['vulnerabilities']:
+                    if 'fixed_in' in vuln.keys() and (vuln['fixed_in'] is None or
+                                                      is_lower(theme_version, vuln['fixed_in'], True)):
+                        embed.add_field(name=vuln['vuln_type'] + ' | ' + vuln['title'] + ' (' + str(vuln['id']) + ')',
+                                        value="fixed in %s" % vuln['fixed_in'], inline=False)
+                        for ref_key in vuln['references'].keys():
+                            for ref in vuln['references'][ref_key]:
+                                if ref_key != 'url':
+                                    embed.add_field(name='reference', value=ref_key.capitalize() + ' - ' + ref)
+                                else:
+                                    embed.add_field(name='reference', value=ref)
+                secret_context.main_loop.create_task(
+                    secret_context.discord_client.send_message(message.channel, embed=embed))
 
 
 def enumerate_plugins(message, secret_context, index):
