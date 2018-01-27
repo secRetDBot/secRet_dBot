@@ -1,15 +1,15 @@
 import json
-import re
-from datetime import datetime
-from threading import Thread
-
 import discord
 import os
+import re
 import requests
 
+from datetime import datetime
 from lxml import etree
 from random import randint
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from secret import utils
+from threading import Thread
 
 
 wordpress_scan_target = ''
@@ -200,7 +200,7 @@ def enumerate_users(message, secret_context, target, user_agent):
     r = requests.get(target + "wp-json/wp/v2/users", headers={"User-Agent": user_agent}, verify=False)
     if "200" in str(r):
         embed = utils.simple_embed('**%s**' % target, 'enumerated users', discord.Color.green())
-        users = json.loads(r.text)
+        users = json.loads(r.content.decode('utf8'))
         for user in users:
             embed.add_field(name=user['name'] + " - " + user['slug'], value=user['id'], inline=False)
         secret_context.main_loop.create_task(secret_context.discord_client.send_message(message.channel, embed=embed))
