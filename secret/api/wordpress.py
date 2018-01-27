@@ -3,14 +3,13 @@ import discord
 import os
 import re
 import requests
+import requests.packages.urllib3
 
 from datetime import datetime
 from lxml import etree
 from random import randint
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from secret import utils
 from threading import Thread
-
 
 wordpress_scan_target = ''
 
@@ -45,6 +44,7 @@ async def on_message(message, secret_context):
                 target = 'http://' + target
 
             wordpress_scan_target = target
+            requests.packages.urllib3.disable_warnings()
 
             t = Thread(target=run, args=(message, secret_context, target))
             t.start()
@@ -200,6 +200,7 @@ def enumerate_users(message, secret_context, target, user_agent):
     r = requests.get(target + "wp-json/wp/v2/users", headers={"User-Agent": user_agent}, verify=False)
     if "200" in str(r):
         embed = utils.simple_embed('**%s**' % target, 'enumerated users', discord.Color.green())
+        print(r.content)
         users = json.loads(r.content.decode('utf8'))
         for user in users:
             embed.add_field(name=user['name'] + " - " + user['slug'], value=user['id'], inline=False)
