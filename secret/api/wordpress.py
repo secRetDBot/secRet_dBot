@@ -1,5 +1,7 @@
 import json
 import re
+from datetime import datetime
+
 import discord
 import os
 import requests
@@ -21,6 +23,7 @@ async def on_message(message, secret_context):
             if not os.path.exists('secret/api/wordpress'):
                 await update_vuln_db(message, secret_context)
 
+            datetime_now = datetime.now()
             user_agent = get_random_agent()
             target = parts[1]
 
@@ -52,6 +55,14 @@ async def on_message(message, secret_context):
                     await list_wp_version_vuln(message, secret_context, target, version)
                     await enumerate_plugins(message, secret_context, index)
                     await enumerate_themes(message, secret_context, index)
+
+                end = datetime.now()
+                total = end - datetime_now
+
+                embed = utils.simple_embed('**%s**' % target, 'wordpress scan finished in: %s' %
+                                           '{0:%H:%M:%S}'.format(total),
+                                           discord.Color.green())
+                await secret_context.discord_client.send_message(message.channel, embed=embed)
 
 
 async def enumerate_themes(message, secret_context, index):
