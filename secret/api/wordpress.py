@@ -99,7 +99,7 @@ async def enumerate_themes(message, secret_context, index):
             for vuln in data[theme_name]['vulnerabilities']:
                 if 'fixed_in' in vuln.keys() and (vuln['fixed_in'] is None or
                                                   is_lower(theme_version, vuln['fixed_in'], True)):
-                    embed.add_field(name=vuln['vuln_type'] + ' | ' + vuln['title'] + ' (' + vuln['id'] + ')',
+                    embed.add_field(name=vuln['vuln_type'] + ' | ' + vuln['title'] + ' (' + str(vuln['id']) + ')',
                                     value="fixed in %s" % vuln['fixed_in'], inline=False)
                     for ref_key in vuln['references'].keys():
                         for ref in vuln['references'][ref_key]:
@@ -134,7 +134,7 @@ async def enumerate_plugins(message, secret_context, index):
             for vuln in data[plugin_name]['vulnerabilities']:
                 if 'fixed_in' in vuln.keys() and (vuln['fixed_in'] is None or
                                                   is_lower(plugin_version, vuln['fixed_in'], True)):
-                    embed.add_field(name=vuln['vuln_type'] + ' | ' + vuln['title'] + ' (' + vuln['id'] + ')',
+                    embed.add_field(name=vuln['vuln_type'] + ' | ' + vuln['title'] + ' (' + str(vuln['id']) + ')',
                                     value="fixed in %s" % vuln['fixed_in'], inline=False)
                     for ref_key in vuln['references'].keys():
                         for ref in vuln['references'][ref_key]:
@@ -167,7 +167,7 @@ async def list_wp_version_vuln(message, secret_context, target, version):
                                discord.Color.green())
 
     for vuln in data[version]["vulnerabilities"]:
-        embed.add_field(name=vuln['vuln_type'], value=vuln['title'] + ' - ' + vuln['id'], inline=False)
+        embed.add_field(name=vuln['vuln_type'], value=vuln['title'] + ' - ' + str(vuln['id']), inline=False)
 
         for ref_key in vuln['references'].keys():
             for ref in vuln['references'][ref_key]:
