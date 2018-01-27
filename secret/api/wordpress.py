@@ -27,6 +27,9 @@ async def on_message(message, secret_context):
             if target[-1] != '/':
                 target = target + '/'
 
+            if not target.startswith('http'):
+                target = 'http://' + target
+
             index = requests.get(target, headers={"User-Agent": user_agent}, verify=False)
             if "wp-" not in index.text:
                 embed = utils.simple_embed('**%s**' % target, 'does not appear to be powered by wordpress',
