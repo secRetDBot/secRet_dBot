@@ -44,16 +44,25 @@ async def on_message(message, secret_context):
                                            discord.Color.green())
                 await secret_context.discord_client.send_message(message.channel, embed=embed)
 
+                print('backup')
                 await check_backup_files(message, secret_context, target, user_agent)
+                print('xml')
                 await check_xml_rpc(message, secret_context, target, user_agent)
+                print('dir list')
                 await check_directory_listing(message, secret_context, target, user_agent)
+                print('robots')
                 await check_robots(message, secret_context, target, user_agent)
+                print('disc')
                 await full_path_disclose(message, secret_context, target, user_agent)
+                print('users')
                 await enumerate_users(message, secret_context, target, user_agent)
 
                 if version is not None:
+                    print('version vuln')
                     await list_wp_version_vuln(message, secret_context, target, version)
+                    print('plugins')
                     await enumerate_plugins(message, secret_context, index)
+                    print('themes')
                     await enumerate_themes(message, secret_context, index)
 
                 end = datetime.now()
