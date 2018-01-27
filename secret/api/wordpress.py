@@ -1,6 +1,7 @@
 import json
 import re
 from datetime import datetime
+from threading import Thread
 
 import discord
 import os
@@ -9,6 +10,9 @@ import requests
 from lxml import etree
 from random import randint
 from secret import utils
+
+
+wordpress_scan_target = ''
 
 
 async def on_message(message, secret_context):
@@ -23,8 +27,15 @@ async def on_message(message, secret_context):
             if not os.path.exists('secret/api/wordpress'):
                 await update_vuln_db(message, secret_context)
 
-            datetime_now = datetime.now()
-            user_agent = get_random_agent()
+            global wordpress_scan_target
+
+            if wordpress_scan_target is not '':
+                embed = utils.simple_embed('wpscan', 'another scan is currently running on **%s**' %
+                                           wordpress_scan_target,
+                                           discord.Color.red())
+                await secret_context.discord_client.send_message(message.channel, embed=embed)
+                return
+
             target = parts[1]
 
             if target[-1] != '/':
@@ -33,39 +44,52 @@ async def on_message(message, secret_context):
             if not target.startswith('http'):
                 target = 'http://' + target
 
-            index = requests.get(target, headers={"User-Agent": user_agent}, verify=False)
-            if "wp-" not in index.text:
-                embed = utils.simple_embed('**%s**' % target, 'does not appear to be powered by wordpress',
-                                           discord.Color.red())
-                await secret_context.discord_client.send_message(message.channel, embed=embed)
-            else:
-                version = check_version(target, user_agent, index)
-                embed = utils.simple_embed('**%s**' % target, 'wordpress version found: **%s**' % version,
-                                           discord.Color.green())
-                await secret_context.discord_client.send_message(message.channel, embed=embed)
+            wordpress_scan_target = target
 
-                await check_backup_files(message, secret_context, target, user_agent)
-                await check_xml_rpc(message, secret_context, target, user_agent)
-                await check_directory_listing(message, secret_context, target, user_agent)
-                await check_robots(message, secret_context, target, user_agent)
-                await full_path_disclose(message, secret_context, target, user_agent)
-                await enumerate_users(message, secret_context, target, user_agent)
-
-                if version is not None:
-                    await list_wp_version_vuln(message, secret_context, target, version)
-                    await enumerate_plugins(message, secret_context, index)
-                    await enumerate_themes(message, secret_context, index)
-
-                end = datetime.now()
-                total = end - datetime_now
-
-                embed = utils.simple_embed('**%s**' % target, 'wordpress scan finished in: %s' %
-                                           '{0:%H:%M:%S}'.format(total),
-                                           discord.Color.green())
-                await secret_context.discord_client.send_message(message.channel, embed=embed)
+            t = Thread(target=run, args=(message, secret_context, target))
+            t.start()
 
 
-async def enumerate_themes(message, secret_context, index):
+def run(message, secret_context, target):
+    datetime_now = datetime.now()
+    user_agent = get_random_agent()
+
+    index = requests.get(target, headers={"User-Agent": user_agent}, verify=False)
+    if "wp-" not in index.text:
+        embed = utils.simple_embed('**%s**' % target, 'does not appear to be powered by wordpress',
+                                   discord.Color.red())
+        secret_context.main_loop.create_task(secret_context.discord_client.send_message(message.channel, embed=embed))
+    else:
+        version = check_version(target, user_agent, index)
+        embed = utils.simple_embed('**%s**' % target, 'wordpress version found: **%s**' % version,
+                                   discord.Color.green())
+        secret_context.main_loop.create_task(secret_context.discord_client.send_message(message.channel, embed=embed))
+
+        check_backup_files(message, secret_context, target, user_agent)
+        check_xml_rpc(message, secret_context, target, user_agent)
+        check_directory_listing(message, secret_context, target, user_agent)
+        check_robots(message, secret_context, target, user_agent)
+        full_path_disclose(message, secret_context, target, user_agent)
+        enumerate_users(message, secret_context, target, user_agent)
+
+        if version is not None:
+            list_wp_version_vuln(message, secret_context, target, version)
+            enumerate_plugins(message, secret_context, index)
+            enumerate_themes(message, secret_context, index)
+
+        end = datetime.now()
+        total = end - datetime_now
+
+        embed = utils.simple_embed('**%s**' % target, 'wordpress scan finished in: %s' %
+                                   '{0:%H:%M:%S}'.format(total),
+                                   discord.Color.green())
+        secret_context.main_loop.create_task(secret_context.discord_client.send_message(message.channel, embed=embed))
+
+        global wordpress_scan_target
+        wordpress_scan_target = ''
+
+
+def enumerate_themes(message, secret_context, index):
     regex = re.compile('wp-content/themes/(.*?)/.*?[css|js].*?ver=([0-9\.]*)')
     match = regex.findall(index.text)
     theme = {}
@@ -98,10 +122,11 @@ async def enumerate_themes(message, secret_context, index):
                                 embed.add_field(name='reference', value=ref_key.capitalize() + ' - ' + ref)
                             else:
                                 embed.add_field(name='reference', value=ref)
-            await secret_context.discord_client.send_message(message.channel, embed=embed)
+            secret_context.main_loop.create_task(
+                secret_context.discord_client.send_message(message.channel, embed=embed))
 
 
-async def enumerate_plugins(message, secret_context, index):
+def enumerate_plugins(message, secret_context, index):
     regex = re.compile('wp-content/plugins/(.*?)/.*?[css|js].*?ver=([0-9\.]*)')
     match = regex.findall(index.text)
     plugin = {}
@@ -118,7 +143,7 @@ async def enumerate_plugins(message, secret_context, index):
 
             embed = utils.simple_embed(plugin_name, plugin_version,
                                        utils.random_color())
-            if plugin_name in data.keys():
+            if plugin_name in data:
                 if is_lower(plugin_version, data[plugin_name]['latest_version'], False):
                     embed.add_field(name='latest version', value=data[plugin_name]['latest_version'], inline=False)
 
@@ -133,10 +158,11 @@ async def enumerate_plugins(message, secret_context, index):
                                 embed.add_field(name='reference', value=ref_key.capitalize() + ' - ' + ref)
                             else:
                                 embed.add_field(name='reference', value=ref)
-            await secret_context.discord_client.send_message(message.channel, embed=embed)
+            secret_context.main_loop.create_task(
+                secret_context.discord_client.send_message(message.channel, embed=embed))
 
 
-async def list_wp_version_vuln(message, secret_context, target, version):
+def list_wp_version_vuln(message, secret_context, target, version):
     # Load json file
     with open('secret/api/wordpress/wordpresses.json') as data_file:
         data = json.load(data_file)
@@ -145,7 +171,7 @@ async def list_wp_version_vuln(message, secret_context, target, version):
         embed = utils.simple_embed('**%s**' % target,
                                    'wordpress version not in db. update wordpress vuln db and try again',
                                    discord.Color.red())
-        await secret_context.discord_client.send_message(message.channel, embed=embed)
+        secret_context.main_loop.create_task(secret_context.discord_client.send_message(message.channel, embed=embed))
 
     if not data[version]["vulnerabilities"]:
         versions = data.keys()
@@ -156,30 +182,31 @@ async def list_wp_version_vuln(message, secret_context, target, version):
     embed = utils.simple_embed('**%s**' % target,
                                'wordpress core vulnerabilities',
                                discord.Color.green())
-
+    count = 0
     for vuln in data[version]["vulnerabilities"]:
+        count += 1
         embed.add_field(name=vuln['vuln_type'], value=vuln['title'] + ' - ' + str(vuln['id']), inline=False)
-
         for ref_key in vuln['references'].keys():
             for ref in vuln['references'][ref_key]:
                 if ref_key != 'url':
                     embed.add_field(name='reference', value=ref_key.capitalize() + ' - ' + ref)
                 else:
                     embed.add_field(name='reference', value=ref)
-    await secret_context.discord_client.send_message(message.channel, embed=embed)
+    if count > 0:
+        secret_context.main_loop.create_task(secret_context.discord_client.send_message(message.channel, embed=embed))
 
 
-async def enumerate_users(message, secret_context, target, user_agent):
+def enumerate_users(message, secret_context, target, user_agent):
     r = requests.get(target + "wp-json/wp/v2/users", headers={"User-Agent": user_agent}, verify=False)
     if "200" in str(r):
         embed = utils.simple_embed('**%s**' % target, 'enumerated users', discord.Color.green())
         users = json.loads(r.text)
         for user in users:
-            embed.add_field(name=user['name'] + " - " + user['slug'], value=user['id'])
-        await secret_context.discord_client.send_message(message.channel, embed=embed)
+            embed.add_field(name=user['name'] + " - " + user['slug'], value=user['id'], inline=False)
+        secret_context.main_loop.create_task(secret_context.discord_client.send_message(message.channel, embed=embed))
 
 
-async def full_path_disclose(message, secret_context, target, user_agent):
+def full_path_disclose(message, secret_context, target, user_agent):
     r = requests.get(target + "wp-includes/rss-functions.php", headers={"User-Agent": user_agent}, verify=False).text
     regex = re.compile("Fatal error:.*? in (.*?) on", re.S)
     matches = regex.findall(r)
@@ -187,10 +214,10 @@ async def full_path_disclose(message, secret_context, target, user_agent):
         embed = utils.simple_embed('**%s**' % target, 'full path disclose in **%s** exposing: %s'
                                    % (target + "wp-includes/rss-functions.php", matches[0].replace('\n', '')),
                                    discord.Color.green())
-        await secret_context.discord_client.send_message(message.channel, embed=embed)
+        secret_context.main_loop.create_task(secret_context.discord_client.send_message(message.channel, embed=embed))
 
 
-async def check_robots(message, secret_context, target, user_agent):
+def check_robots(message, secret_context, target, user_agent):
     r = requests.get(target + "robots.txt", headers={"User-Agent": user_agent}, verify=False)
     if "200" in str(r) and "404" not in r.text:
         embed = utils.simple_embed('**%s**' % target, 'robots is available at: **%s**' % target + "robots.txt",
@@ -199,10 +226,10 @@ async def check_robots(message, secret_context, target, user_agent):
         for l in lines:
             if "Disallow:" in l:
                 embed.add_field(name='disallow', value=l, inline=False)
-        await secret_context.discord_client.send_message(message.channel, embed=embed)
+        secret_context.main_loop.create_task(secret_context.discord_client.send_message(message.channel, embed=embed))
 
 
-async def check_directory_listing(message, secret_context, target, user_agent):
+def check_directory_listing(message, secret_context, target, user_agent):
     directories = ["wp-content/uploads/", "wp-content/plugins/", "wp-content/themes/", "wp-includes/", "wp-admin/"]
     dir_name = ["Uploads", "Plugins", "Themes", "Includes", "Admin"]
 
@@ -212,18 +239,20 @@ async def check_directory_listing(message, secret_context, target, user_agent):
             embed = utils.simple_embed('**%s**' % target,
                                        'directory listing is enabled for: **%s**' % target + directory,
                                        discord.Color.green())
-            await secret_context.discord_client.send_message(message.channel, embed=embed)
+            secret_context.main_loop.create_task(
+                secret_context.discord_client.send_message(message.channel, embed=embed))
 
 
-async def check_xml_rpc(message, secret_context, target, user_agent):
+def check_xml_rpc(message, secret_context, target, user_agent):
     r = requests.get(target + "xmlrpc.php", headers={"User-Agent": user_agent}, verify=False)
     if "200" in str(r) and "404" not in r.text:
         embed = utils.simple_embed('**%s**' % target, 'found xml-rpc interface: **%s**' % target + "xmlrpc.php",
                                    discord.Color.green())
-        await secret_context.discord_client.send_message(message.channel, embed=embed)
+        secret_context.main_loop.create_task(
+            secret_context.discord_client.send_message(message.channel, embed=embed))
 
 
-async def check_backup_files(message, secret_context, target, user_agent):
+def check_backup_files(message, secret_context, target, user_agent):
     backup = ['wp-config.php~', 'wp-config.php.save', '.wp-config.php.bck', 'wp-config.php.bck', '.wp-config.php.swp',
               'wp-config.php.swp', 'wp-config.php.swo', 'wp-config.php_bak', 'wp-config.bak', 'wp-config.php.bak',
               'wp-config.save', 'wp-config.old', 'wp-config.php.old', 'wp-config.php.orig', 'wp-config.orig',
@@ -237,7 +266,8 @@ async def check_backup_files(message, secret_context, target, user_agent):
         if "200" in str(r) and "404" not in r.text:
             embed = utils.simple_embed('**%s**' % target, 'found config backup: **%s**' % target + b,
                                        discord.Color.green())
-            await secret_context.discord_client.send_message(message.channel, embed=embed)
+            secret_context.main_loop.create_task(
+                secret_context.discord_client.send_message(message.channel, embed=embed))
 
 
 def check_version(target, user_agent, index):
